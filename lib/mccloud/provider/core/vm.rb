@@ -41,6 +41,7 @@ module Mccloud
       attr_accessor :private_key_path
       attr_accessor :public_key_path
       attr_accessor :agent_forwarding
+      attr_accessor :forwarded_env_vars
 
       attr_accessor :auto_selection
 
@@ -66,6 +67,7 @@ module Mccloud
         @agent_forwarding=false
         @create_options={}
         @definition=nil
+		@forwarded_env_vars=Array.new
       end
 
       def declared?
