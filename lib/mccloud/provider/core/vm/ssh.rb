@@ -26,7 +26,7 @@ module Mccloud
           if @agent_forwarding
             command_options << "-A"
           end
-          if @forwarded_env_vars.is_a? string
+          if @forwarded_env_vars.is_a? String
 		    command_options << "-o SendEnv=#{@forwarded_env_vars}"
 		  end
 		  if @forwarded_env_vars.is_a? Array
