@@ -26,6 +26,12 @@ module Mccloud
           if @agent_forwarding
             command_options << "-A"
           end
+          if @forwarded_env_vars.is_a? string
+		    command_options << "-o SendEnv=#{@forwarded_env_vars}"
+		  end
+		  if @forwarded_env_vars.is_a? Array
+			@forwarded_env_vars.each { |v| command_options << "-o SendEnv #{v}" }
+		  end
           commandline_options="#{command_options.join(" ")} ".strip
 
           unless options[:user]
