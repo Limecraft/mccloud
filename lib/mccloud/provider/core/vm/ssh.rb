@@ -30,7 +30,7 @@ module Mccloud
 		    command_options << "-o SendEnv=#{@forwarded_env_vars}"
 		  end
 		  if @forwarded_env_vars.is_a? Array
-			@forwarded_env_vars.each { |v| command_options << "-o SendEnv #{v}" }
+		    @forwarded_env_vars.each { |v| command_options << "-o SendEnv=#{v}" }
 		  end
           commandline_options="#{command_options.join(" ")} ".strip
 
