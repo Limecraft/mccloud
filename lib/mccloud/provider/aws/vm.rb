@@ -28,6 +28,7 @@ module Mccloud::Provider
       attr_accessor :key_name
       attr_accessor :zone
       attr_accessor :security_groups
+      attr_accessor :user_data
       attr_accessor :flavor
 
       include Mccloud::Provider::Aws::VmCommand
@@ -46,7 +47,8 @@ module Mccloud::Provider
         # on provider region and flavor
         @ami="ami-e59ca991"
 
-        @user="root"
+        @user = "root"
+        @user_data = nil
 
       end
 
@@ -66,7 +68,12 @@ module Mccloud::Provider
         end
       end
       def ip_address
-        return self.public_ip_address
+        # For VPC
+        ip = self.public_ip_address
+        return ip unless ip.nil?
+        ip = self.private_ip_address
+        return ip unless ip.nil?
+        return nil
       end
 
       def public_ip_address

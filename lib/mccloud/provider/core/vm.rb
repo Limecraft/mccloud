@@ -45,15 +45,21 @@ module Mccloud
       attr_accessor :auto_selection
 
       attr_accessor :bootstrap
+      attr_accessor :bootstrap_user
+      attr_accessor :bootstrap_password
       attr_accessor :provisioners
 
       attr_accessor :forwardings
+      attr_accessor :shared_folders
+      attr_accessor :shared_files
       attr_accessor :stacked
       attr_accessor :declared
 
       def initialize(env)
         @env=env
         @forwardings=Array.new
+        @shared_folders = Array.new
+        @shared_files = Array.new
         @stacked=false
         @auto_selection=true
         @declared=true
@@ -102,8 +108,8 @@ module Mccloud
         end
       end
 
-      def forward_port(name,local,remote)
-        forwarding=Forwarding.new(name,local,remote)
+      def forward_port(name,remote,local)
+        forwarding=Forwarding.new(name,remote,local)
         forwardings << forwarding
       end
 

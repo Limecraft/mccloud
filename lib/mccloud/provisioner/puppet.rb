@@ -1,4 +1,3 @@
-require 'mccloud/util/rsync'
 require 'mccloud/util/ssh'
 require 'erb'
 require 'tempfile'
@@ -70,8 +69,8 @@ module Mccloud
         expanded_module_paths.each do |path|
           remote_path=File.join(pp_path,"modules-#{i}")
           env.ui.info "Sharing module dir #{path}"
-          server.execute("test -d '#{remote_path}' || mkdir -p '#{remote_path}'")
-          server.share_folder("modules-#{i}",path,remote_path,{:mute => false})
+          server.share_sync(path,remote_path,{:mute => false})
+          server.execute("chmod 700 '#{remote_path}'")
           i=i+1
         end
       end
@@ -82,7 +81,8 @@ module Mccloud
           remote_path=File.join(pp_path,"manifests-#{i}")
           env.ui.info "Sharing manifest dir #{path}"
           server.execute("test -d '#{remote_path}' || mkdir -p '#{remote_path}'")
-          server.share_folder("manifests-#{i}",path,remote_path,{:mute => false})
+          server.share_sync(path,remote_path,{:mute => false})
+          server.execute("chmod 700 '#{remote_path}'")
           i=i+1
         end
       end
@@ -95,6 +95,11 @@ module Mccloud
       end
 
       def share_manifest
+        if @manifest_file.nil?
+          # Nothing to do here
+          return
+        end
+
         full_path=Pathname.new(File.join(manifests_path,@manifest_file)).expand_path(env.root_path).to_s
 
         # These are the default
@@ -163,11 +168,12 @@ module Mccloud
       def run(server)
         @server=server
         if @manifest_file.nil?
-          raise ::Mccloud::Error, "You did not specify a manifest file, makes no sense to run"
+          env.ui.info "No specific manifestfile specified defaulting to site.pp in the manifest dir"
         end
 
         env.logger.info "Starting puppet run"
-        server.execute("mkdir -p #{@pp_path}")
+        server.execute("mkdir -p '#{@pp_path}'")
+        server.execute("chmod 700 '#{@pp_path}'")
         prepare
 
         env.ui.info "Running puppet"
@@ -179,25 +185,30 @@ module Mccloud
           end
         end
 
-        options=[
-          "apply",
-          "--debug",
-          "--verbose"]
-
-          unless @module_paths.empty?
-            options << "--modulepath=#{@module_paths.values.join(':')}"
-          end
+        puppet_options=[ "apply"]
+        @options.each do |o|
+          puppet_options << o
+        end
 
 
-          options << "--manifestdir=#{File.join(@pp_path,'manifests-0')}"
+        unless @module_paths.empty?
+          puppet_options << "--modulepath=#{@module_paths.values.join(':')}"
+        end
 
+        manifestdir="#{File.join(@pp_path,'manifests-0')}"
+        puppet_options << "--manifestdir=#{manifestdir}"
+
+        if @manifest_file.nil?
+          puppet_options << File.join(manifestdir,"site.pp")
+        else
           if is_erb?(@manifest_file)
-            options << File.join(@pp_path,File.basename(@manifest_file,".erb"))
+            puppet_options << File.join(@pp_path,File.basename(@manifest_file,".erb"))
           else
-            options << File.join(@pp_path,File.basename(@manifest_file))
+            puppet_options << File.join(@pp_path,File.basename(@manifest_file))
           end
+        end
 
-          server.sudo("#{pre_options.join(" ")} puppet #{options.join(' ')}")
+        server.sudo("#{pre_options.join(" ")} puppet #{puppet_options.join(' ')}")
       end
     end #Class
   end #Module Provisioners

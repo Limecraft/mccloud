@@ -9,7 +9,7 @@ module Mccloud
       options=defaults.merge(options)
 
       puts
-      puts "Waiting for ssh login on #{ip} with user #{options[:user]} to sshd on port => #{options[:port]} to work"
+      puts "Waiting for ssh login on #{ip} with user #{options[:user]} to sshd on port => #{options[:port]} to work (Timeout in #{options[:timeout]} seconds)"
 
       begin
         Timeout::timeout(options[:timeout]) do
@@ -17,12 +17,12 @@ module Mccloud
           while !connected do
             begin
               print "."
-              Net::SSH.start(ip, options[:user], { :port => options[:port] , :password => options[:password], :paranoid => false, :timeout => options[:timeout]  }) do |ssh|
+              Net::SSH.start(ip, options[:user], { :port => options[:port] , :password => options[:password], :paranoid => false, :timeout => options[:timeout] ,:keys => options[:keys] }) do |ssh|
                 block.call(ip);
                 puts ""
                 return true
               end
-            rescue Net::SSH::Disconnect,Errno::ECONNREFUSED, Errno::EHOSTUNREACH, Errno::ECONNABORTED, Errno::ECONNRESET, Errno::ENETUNREACH
+            rescue Net::SSH::AuthenticationFailed,Net::SSH::Disconnect,Errno::ECONNREFUSED, Errno::EHOSTUNREACH, Errno::ECONNABORTED, Errno::ECONNRESET, Errno::ENETUNREACH
               sleep 5
             end
           end
@@ -71,7 +71,7 @@ module Mccloud
               s.close
               block.call(ip);
               return true
-            rescue Errno::ECONNREFUSED, Errno::EHOSTUNREACH
+            rescue Errno::ECONNREFUSED, Errno::EHOSTUNREACH,Errno::ETIMEDOUT
               sleep options[:pollrate]
             end
           end

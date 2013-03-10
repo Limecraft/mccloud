@@ -2,6 +2,7 @@ require 'json'
 
 require 'i18n'
 require 'openssl'
+require 'pathname'
 
 module Mccloud
   # The source root is the path to the root directory of
@@ -12,7 +13,7 @@ module Mccloud
 end
 
 # # Default I18n to load the en locale
-I18n.load_path << File.expand_path("templates/locales/en.yml", Mccloud.source_root)
+I18n.load_path << File.expand_path("lib/mccloud/templates/locales/en.yml", Mccloud.source_root)
 
 # Load the things which must be loaded before anything else
 require 'mccloud/cli'

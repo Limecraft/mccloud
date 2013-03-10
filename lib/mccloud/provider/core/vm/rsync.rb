@@ -2,11 +2,47 @@ module Mccloud::Provider
   module Core
     module VmCommand
 
-
-      def share_folder(name,src,dest="tmp",options={})
+      def share_folder(name , dest,src,options={})
         new_options={:mute => false}.merge(options)
+        @shared_folders << { :name => name, :dest => dest, :src => src, :options => new_options}
+      end
+
+      def share_file(name , dest,src,options={})
+        new_options={:mute => false}.merge(options)
+        @shared_files << { :name => name, :dest => dest, :src => src, :options => new_options}
+      end
+
+      def share
+        @shared_folders.each do |folder|
+          self.execute("test -d '#{folder[:dest]}' || mkdir -p '#{folder[:dest]}' ")
+          clean_src_path=File.join(Pathname.new(folder[:src]).expand_path.cleanpath.to_s,'/')
+          rsync(clean_src_path,folder[:dest],folder[:options])
+        end
+        @shared_files.each do |file|
+          self.execute("test -d '#{File.dirname(file[:dest])}' || mkdir -p '#{File.dirname(file[:dest])}' ")
+          clean_src_path=Pathname.new(file[:src]).expand_path.cleanpath.to_s
+          rsync(clean_src_path,file[:dest],file[:options])
+        end
+      end
+
+      def share_sync(src, dest, options = {})
         clean_src_path=File.join(Pathname.new(src).cleanpath.to_s,'/')
-        rsync(clean_src_path,dest,new_options)
+        rsync(clean_src_path,dest,options)
+      end
+
+      def windows_client?
+        ::Mccloud::Util::Platform.windows?
+      end
+
+      # cygwin rsync path must be adjusted to work
+      def adjust_rsync_path(path)
+        return path unless windows_client?
+        path.gsub(/^(\w):/) { "/cygdrive/#{$1}" }
+      end
+
+      # see http://stackoverflow.com/questions/5798807/rsync-permission-denied-created-directories-have-no-permissions
+      def rsync_permissions
+        '--chmod=ugo=rwX' if windows_client?
       end
 
       # http://blade.nagaokaut.ac.jp/cgi-bin/scat.rb/ruby/ruby-talk/185404
@@ -18,7 +54,18 @@ module Mccloud::Provider
           mute="-v" 
           mute="-q -t" if  options[:mute]
 
-          command="rsync --exclude '.DS_Store' --exclude '.hg' --exclude '.git' #{mute} --delete-excluded --delete  -az -e 'ssh #{ssh_commandline_options(options)}' '#{src}' '#{@user}@#{self.ip_address}:/#{dest}'"
+          if Pathname.new(dest).absolute?
+            dest_path = dest
+          else
+            dest_path = File.join(File::Separator,dest)
+          end
+
+          if dest_path == File::Separator
+            puts "no way we gonna rsync --delete the root filesystem"
+            exit -1
+          end
+
+          command="rsync #{rsync_permissions} --exclude '.DS_Store' --exclude '.hg' --exclude '.git' #{mute} --delete-excluded --delete  -az -e 'ssh #{ssh_commandline_options(options)}' '#{adjust_rsync_path(src)}' '#{@user}@#{self.ip_address}:#{dest_path}'"
         else
           env.ui.info "[#{@name}] - rsync error: #{src} does no exist"
           exit
