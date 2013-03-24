@@ -164,11 +164,14 @@ module Mccloud
                 server.execute("rm -rf /tmp/#{File.basename(data_bags_path)}",{:mute => true})
             end
 
-            unless encrypted_data_bag_secret_key_path.nil?
-                env.ui.info "[#{server.name}] - [#{@name}] - Cleaning encrypted_databag_secret #{encrypted_data_bag_secret_key_path}"
-                server.execute("rm -rf /tmp/#{File.basename(encrypted_data_bag_secret_key_path)}",{:mute => true})
-            end
           end
+		  
+		  # No matter we clean or not, always remove decryption keys for databags!
+          unless encrypted_data_bag_secret_key_path.nil?
+            env.ui.info "[#{server.name}] - [#{@name}] - Cleaning encrypted_databag_secret #{encrypted_data_bag_secret_key_path}"
+            server.execute("rm -rf /tmp/#{File.basename(encrypted_data_bag_secret_key_path)}",{:mute => true})
+          end
+
         end
 
         #Cleaning up
