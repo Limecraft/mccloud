@@ -213,6 +213,24 @@ module Mccloud
 
         end
 
+        def hosts
+          hostentries = Hash.new
+          filter = self.filter
+
+          self.raw.servers.each do |s|
+            name_tag = s.tags["Name"]
+            if name_tag.start_with?(filter)
+              servername = name_tag.sub(/^#{filter}/,'')
+              h = Hash.new
+              h['public_ip_address']=s.public_ip_address
+              h['private_ip_address']=s.private_ip_address
+              hostentries[servername] = h
+            end
+          end
+
+          return hostentries
+        end
+
       end
     end
   end

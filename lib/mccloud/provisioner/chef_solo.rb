@@ -57,10 +57,35 @@ module Mccloud
 
           public_ips=Hash.new
           private_ips=Hash.new
+
+          providers = Hash.new
+          # Add all providers
           server.provider.vms.each do |name,vm|
-            public_ips[name]=vm.public_ip_address
-            private_ips[name]=vm.private_ip_address
+            providers[vm.provider.name] = vm.provider if providers[vm.provider.name].nil?
           end
+
+          providers.each do |providername,provider|
+            hosts = providers[providername].hosts
+            hosts.each do |name,host|
+              public_ips[name]=host['public_ip_address']
+              private_ips[name]=host['private_ip_address']
+            end
+          end
+
+=begin
+
+          # For each provider , get the ip-addresses
+          providers.each do |providername, provider|
+            #namespace = provider.namespace
+            filter = provider.filter
+
+            provider.raw.servers.each do |s|
+              name = s.tags["Name"].sub(/^#{filter}/,'')
+              public_ips[name]=s.public_ip_address
+              private_ips[name]=s.private_ip_address
+            end
+          end
+=end
 
           # http://www.techques.com/question/1-3242470/Problem-using-OpenStruct-with-ERB
           # We only want specific variables for ERB
@@ -69,7 +94,11 @@ module Mccloud
           vars = ErbBinding.new(data)
 
           # Added vmname in mccloud
-          @json.merge!({ :mccloud => {:name => server.name }})
+          @json.merge!({ :mccloud => {
+            :name => server.name,
+            :private_ips => private_ips,
+            :public_ips => public_ips
+          } })
 
           template = @json.to_json.to_s
           erb = ERB.new(template)
@@ -137,11 +166,14 @@ module Mccloud
 
         env.ui.info "[#{server.name}] - [#{@name}] - running chef-solo"
         env.ui.info "[#{server.name}] - [#{@name}] - login as #{server.user}"
+
+        exec_results = ''
+
         begin
           if server.user=="root"
-            server.execute("chef-solo -c /tmp/solo.rb -j /tmp/dna.json -l #{@log_level}")
+            exec_results = server.execute("chef-solo --force-formatter -c /tmp/solo.rb -j /tmp/dna.json -l #{@log_level}")
           else
-            server.execute("sudo -i chef-solo -c /tmp/solo.rb -j /tmp/dna.json -l #{@log_level}")
+            exec_results = server.execute("sudo -i chef-solo --force-formatter -c /tmp/solo.rb -j /tmp/dna.json -l #{@log_level}")
 
             #server.execute("sudo chef-solo -c /tmp/solo.rb -j /tmp/dna.json -l #{@log_level}")
           end
@@ -175,6 +207,10 @@ module Mccloud
             server.execute("rm -rf /tmp/#{File.basename(encrypted_data_bag_secret_key_path)}",{:mute => true})
           end
 
+
+          if (exec_results.status != 0)
+            raise ::Mccloud::Error,"Chef solo exit with a non-zero exitcode #{exec_results.status}"
+          end
         end
 
         #Cleaning up
